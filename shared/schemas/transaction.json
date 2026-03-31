@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TearBear250/crypto-teller-machine/shared/schemas/transaction.json",
+  "title": "Transaction",
+  "description": "Represents a single cash-in or cash-out transaction",
+  "type": "object",
+  "required": [
+    "transaction_id",
+    "session_id",
+    "kiosk_id",
+    "direction",
+    "asset_id",
+    "fiat_amount",
+    "fiat_currency",
+    "asset_amount",
+    "state",
+    "created_at"
+  ],
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this transaction"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Parent session identifier"
+    },
+    "kiosk_id": {
+      "type": "string",
+      "description": "Identifier of the kiosk that initiated the transaction"
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["buy", "sell"],
+      "description": "buy = cash-in (fiat → crypto), sell = cash-out (crypto → fiat)"
+    },
+    "asset_id": {
+      "type": "string",
+      "enum": ["ltc", "doge", "xrp", "sol"],
+      "description": "Crypto asset identifier"
+    },
+    "network_mode": {
+      "type": "string",
+      "enum": ["testnet", "mainnet"],
+      "description": "Network the transaction was executed on"
+    },
+    "fiat_amount": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "exclusiveMinimum": true,
+      "description": "Fiat value of the transaction"
+    },
+    "fiat_currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "example": "CAD",
+      "description": "ISO 4217 currency code"
+    },
+    "asset_amount": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "exclusiveMinimum": true,
+      "description": "Crypto asset amount"
+    },
+    "fee_fiat": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "description": "Total fee charged in fiat"
+    },
+    "exchange_rate": {
+      "type": "number",
+      "format": "double",
+      "description": "Fiat per 1 unit of asset at time of transaction"
+    },
+    "destination_address": {
+      "type": "string",
+      "description": "User wallet address (for buy) or kiosk deposit address (for sell)"
+    },
+    "destination_tag": {
+      "type": ["integer", "null"],
+      "description": "Destination tag (required for XRP transactions)"
+    },
+    "txid": {
+      "type": ["string", "null"],
+      "description": "Blockchain transaction ID once broadcast"
+    },
+    "confirmations": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of on-chain confirmations"
+    },
+    "required_confirmations": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Minimum confirmations required by risk policy"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "PROCESSING",
+        "CONFIRMING",
+        "COMPLETE",
+        "CANCELLED",
+        "FAILED"
+      ]
+    },
+    "failure_reason": {
+      "type": ["string", "null"],
+      "description": "Human-readable reason if state = FAILED or CANCELLED"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
