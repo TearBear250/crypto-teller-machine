@@ -1,0 +1,84 @@
+# ─── Node.js ────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.pnpm-store
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+
+# ─── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.ruff_cache/
+.pytype/
+*.egg-info/
+dist/
+*.egg
+MANIFEST
+
+# ─── Electron / Vite ────────────────────────────────────────────────────────
+.vite/
+electron/dist/
+
+# ─── OS / Editor ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ─── Linux / Raspberry Pi ───────────────────────────────────────────────────
+*.so
+*.ko
+*.o
+*.a
+*.elf
+*.img
+*.bin
+core
+.env
+.env.*
+!.env.example
+
+# ─── Logs and temp files ─────────────────────────────────────────────────────
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+# ─── Secrets and credentials ─────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
