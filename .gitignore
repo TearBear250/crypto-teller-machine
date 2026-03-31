@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Environment files (contain secrets)
+.env
+# .env.example files are intentionally tracked
+
+# Podman / Docker build cache
+.containerignore
+
+# Node (future kiosk-ui)
+node_modules/
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Certificates (never commit real certs)
+*.pem
+*.key
+*.crt
+*.csr
+# .example cert files are OK
+
+# Logs
+*.log
