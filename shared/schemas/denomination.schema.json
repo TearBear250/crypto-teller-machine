@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ctm.internal/schemas/denomination.schema.json",
+  "title": "Denomination",
+  "description": "A single bill or coin denomination. Value is stored as integer cents to prevent floating-point drift across kiosks. The stable ID must never change once assigned.",
+  "type": "object",
+  "required": ["id", "value_cents", "kind", "display_label", "theme"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable machine-readable identifier. Format: {KIND}_{CURRENCY}_{VALUE_CENTS_PADDED}. Must never change once a kiosk has been deployed.",
+      "pattern": "^(BILL|COIN)_[A-Z]{3}_[0-9]+$",
+      "examples": ["BILL_USD_100", "BILL_USD_500", "COIN_USD_025", "COIN_USD_001"]
+    },
+    "value_cents": {
+      "$ref": "money_cents.schema.json",
+      "description": "Face value expressed as an integer number of cents (e.g. $1.00 = 100, $0.25 = 25)."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["bill", "coin"],
+      "description": "Physical form of this denomination."
+    },
+    "display_label": {
+      "type": "string",
+      "description": "Human-readable label rendered on the kiosk UI and printed voucher (e.g. '$1', '$0.25', '25¢').",
+      "minLength": 1,
+      "examples": ["$1", "$5", "$0.25", "25¢"]
+    },
+    "theme": {
+      "type": "string",
+      "description": "Visual theme name controlling colors and artwork. Allows the same denomination set to render correctly for different currencies/locales without changing numeric values.",
+      "examples": ["usd_like", "cad_like", "neutral"]
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "When false the kiosk must not accept or dispense this denomination. Defaults to true."
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ctm.internal/schemas/qr_profile.schema.json",
+  "title": "QrProfile",
+  "description": "Canonical QR-code generation parameters. Every kiosk MUST use the same QrProfile to ensure that printed QR codes scan reliably across all readers and that kiosks cannot drift independently.",
+  "type": "object",
+  "required": ["format", "uri_prefix", "error_correction", "module_size_mm", "quiet_zone_modules"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": ["uri"],
+      "description": "Payload encoding format. 'uri' means the QR content is a URI string (see uri_prefix)."
+    },
+    "uri_prefix": {
+      "type": "string",
+      "description": "Fixed prefix prepended to every claim token to form the full QR payload URI. The kiosk MUST append only the opaque token — no extra query parameters.",
+      "examples": ["ctm://claim/", "ctm://voucher/"]
+    },
+    "error_correction": {
+      "type": "string",
+      "enum": ["L", "M", "Q", "H"],
+      "description": "Reed-Solomon error correction level. 'M' (15%) is the recommended minimum for printed vouchers. Use 'Q' (25%) for high-wear environments."
+    },
+    "module_size_mm": {
+      "type": "number",
+      "description": "Physical size of each QR module (dark/light square) in millimetres. Must be ≥ 0.25 mm for reliable scanning from 150 mm distance.",
+      "minimum": 0.25,
+      "examples": [0.5, 0.75, 1.0]
+    },
+    "quiet_zone_modules": {
+      "type": "integer",
+      "description": "Number of empty (white) modules around the QR symbol on all four sides. The QR spec requires ≥ 4; 4 is the minimum allowed here.",
+      "minimum": 4,
+      "examples": [4, 6]
+    }
+  }
+}

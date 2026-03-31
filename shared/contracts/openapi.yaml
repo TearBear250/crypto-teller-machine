@@ -374,6 +374,13 @@ components:
         fiat_amount:
           type: number
           format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents to avoid floating-point drift.
+            Retained for backward compatibility with kiosk-agent < 0.2.0.
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Fiat amount expressed as integer cents. Preferred over fiat_amount.
         fiat_currency:
           type: string
         asset_amount:
@@ -386,6 +393,12 @@ components:
         fee_fiat:
           type: number
           format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fee_fiat_cents to avoid floating-point drift.
+        fee_fiat_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Transaction fee expressed as integer cents. Preferred over fee_fiat.
         expires_at:
           type: string
           format: date-time
@@ -404,7 +417,13 @@ components:
         fiat_amount:
           type: number
           format: double
-          description: Required for buy direction
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents. Required for buy direction if
+            fiat_amount_cents is absent (backward compatibility only).
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Fiat amount in integer cents. Required for buy direction (preferred over fiat_amount).
         asset_amount:
           type: number
           format: double
@@ -445,6 +464,12 @@ components:
         fiat_amount:
           type: number
           format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents to avoid floating-point drift.
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Session fiat amount expressed as integer cents.
         fiat_currency:
           type: string
         asset_amount:
@@ -532,6 +557,7 @@ components:
             - TX_BROADCAST
             - TX_CONFIRMED
             - TX_FAILED
+            - CONFIG_MISMATCH
         occurred_at:
           type: string
           format: date-time
@@ -545,6 +571,13 @@ components:
       properties:
         kiosk_id:
           type: string
+        spec_version:
+          type: string
+          description: |
+            Version string for this configuration payload. Kiosks MUST reject
+            a downgrade below their currently loaded version. Format: YYYY-MM-DD.N
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+$"
+          example: "2026-03-31.1"
         enabled_assets:
           type: array
           items:
@@ -557,13 +590,42 @@ components:
         max_fiat_per_session:
           type: number
           format: double
+          deprecated: true
+          description: DEPRECATED — use max_fiat_per_session_cents.
+        max_fiat_per_session_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Maximum fiat per session expressed as integer cents.
         max_fiat_per_day:
           type: number
           format: double
+          deprecated: true
+          description: DEPRECATED — use max_fiat_per_day_cents.
+        max_fiat_per_day_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Maximum fiat per day expressed as integer cents.
         fiat_currency:
           type: string
         version:
           type: string
+          deprecated: true
+          description: DEPRECATED — use spec_version.
+        denominations:
+          $ref: "#/components/schemas/DenominationSet"
+          description: |
+            Complete denomination set for this kiosk. Delivered from the backend
+            so all kiosks in the fleet share an identical, versioned denomination
+            configuration. Kiosks MUST render denominations from this field only.
+        qr_profile:
+          $ref: "#/components/schemas/QrProfile"
+          description: |
+            QR code generation parameters. All kiosks MUST use these exact values
+            to guarantee that printed QR codes scan reliably on any reader.
+        print_profile:
+          $ref: "#/components/schemas/PrintProfile"
+          description: |
+            Voucher print layout parameters. Kiosks MUST refuse to print if their
+            local template store does not contain the specified template_id at
+            the specified template_version.
 
     HeartbeatRequest:
       type: object
@@ -591,6 +653,143 @@ components:
             qr_scanner:
               type: string
               enum: [ok, error, disconnected]
+
+    MoneyCents:
+      type: integer
+      minimum: 0
+      description: |
+        A non-negative integer representing a fiat monetary amount in the
+        smallest indivisible unit of the currency (cents for USD/CAD).
+        Integer representation eliminates floating-point drift across kiosks.
+      examples: [100, 500, 1000, 2000, 5000, 10000]
+
+    Denomination:
+      type: object
+      required: [id, value_cents, kind, display_label, theme]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: |
+            Stable machine-readable identifier.
+            Format: {KIND}_{CURRENCY}_{VALUE_CENTS_PADDED}.
+            Must never change once a kiosk has been deployed.
+          pattern: "^(BILL|COIN)_[A-Z]{3}_[0-9]+$"
+          examples: ["BILL_USD_100", "COIN_USD_025"]
+        value_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Face value expressed as integer cents (e.g. $1.00 = 100).
+        kind:
+          type: string
+          enum: [bill, coin]
+          description: Physical form of this denomination.
+        display_label:
+          type: string
+          description: Human-readable label rendered on the kiosk UI and printed voucher.
+          minLength: 1
+          examples: ["$1", "$5", "25¢"]
+        theme:
+          type: string
+          description: Visual theme controlling colors and artwork on the kiosk UI.
+          examples: ["usd_like", "cad_like", "neutral"]
+        enabled:
+          type: boolean
+          default: true
+          description: When false the kiosk must not accept or dispense this denomination.
+
+    DenominationSet:
+      type: object
+      required: [spec_version, fiat_currency, bills, coins]
+      additionalProperties: false
+      properties:
+        spec_version:
+          type: string
+          description: |
+            Monotonically increasing version. Kiosks MUST reject a downgrade.
+            Format: YYYY-MM-DD.N
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+$"
+          example: "2026-03-31.1"
+        fiat_currency:
+          type: string
+          description: ISO 4217 currency code this denomination set applies to.
+          pattern: "^[A-Z]{3}$"
+          example: "USD"
+        bills:
+          type: array
+          description: Bill denominations ordered from lowest to highest value.
+          items:
+            $ref: "#/components/schemas/Denomination"
+        coins:
+          type: array
+          description: Coin denominations ordered from lowest to highest value.
+          items:
+            $ref: "#/components/schemas/Denomination"
+
+    QrProfile:
+      type: object
+      required: [format, uri_prefix, error_correction, module_size_mm, quiet_zone_modules]
+      additionalProperties: false
+      properties:
+        format:
+          type: string
+          enum: [uri]
+          description: Payload encoding format. 'uri' = QR content is a URI string.
+        uri_prefix:
+          type: string
+          description: |
+            Fixed prefix prepended to every claim token to form the full QR
+            payload URI. Kiosk MUST append only the opaque token.
+          examples: ["ctm://claim/", "ctm://voucher/"]
+        error_correction:
+          type: string
+          enum: [L, M, Q, H]
+          description: |
+            Reed-Solomon error correction level. 'M' (15%) is the recommended
+            minimum for printed vouchers. Use 'Q' (25%) for high-wear environments.
+        module_size_mm:
+          type: number
+          description: |
+            Physical size of each QR module in millimetres. Must be ≥ 0.25 mm
+            for reliable scanning at 150 mm distance.
+          minimum: 0.25
+          examples: [0.5, 0.75, 1.0]
+        quiet_zone_modules:
+          type: integer
+          description: |
+            Number of empty modules surrounding the QR symbol on all four sides.
+            The QR spec requires ≥ 4; this field enforces that minimum.
+          minimum: 4
+          examples: [4, 6]
+
+    PrintProfile:
+      type: object
+      required: [paper, dpi, template_id, template_version]
+      additionalProperties: false
+      properties:
+        paper:
+          type: string
+          enum: [receipt_80mm, receipt_58mm, a6, a5]
+          description: Physical paper/stock type. 'receipt_80mm' is the standard for kiosk thermal printers.
+        dpi:
+          type: integer
+          description: |
+            Printer resolution in dots-per-inch. Must match the physical printer
+            capability; mismatches cause QR distortion.
+          minimum: 150
+          examples: [203, 300, 600]
+        template_id:
+          type: string
+          description: Stable identifier for the voucher layout template.
+          minLength: 1
+          examples: ["voucher_v1", "voucher_compact_v1"]
+        template_version:
+          type: string
+          description: |
+            Version of the named template. Kiosks MUST refuse to print if they
+            do not have this exact version loaded and MUST log a CONFIG_MISMATCH
+            audit event.
+          pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          examples: ["1.0.0", "1.1.0"]
 
     ErrorResponse:
       type: object

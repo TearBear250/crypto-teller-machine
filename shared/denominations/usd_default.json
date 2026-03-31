@@ -1,0 +1,121 @@
+{
+  "$schema": "../schemas/denomination_set.schema.json",
+  "spec_version": "2026-03-31.1",
+  "fiat_currency": "USD",
+  "bills": [
+    {
+      "id": "BILL_USD_100",
+      "value_cents": 100,
+      "kind": "bill",
+      "display_label": "$1",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_500",
+      "value_cents": 500,
+      "kind": "bill",
+      "display_label": "$5",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_1000",
+      "value_cents": 1000,
+      "kind": "bill",
+      "display_label": "$10",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_2000",
+      "value_cents": 2000,
+      "kind": "bill",
+      "display_label": "$20",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_5000",
+      "value_cents": 5000,
+      "kind": "bill",
+      "display_label": "$50",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_10000",
+      "value_cents": 10000,
+      "kind": "bill",
+      "display_label": "$100",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "BILL_USD_100000",
+      "value_cents": 100000,
+      "kind": "bill",
+      "display_label": "$1000",
+      "theme": "usd_like",
+      "enabled": true
+    }
+  ],
+  "coins": [
+    {
+      "id": "COIN_USD_001",
+      "value_cents": 1,
+      "kind": "coin",
+      "display_label": "1¢",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_005",
+      "value_cents": 5,
+      "kind": "coin",
+      "display_label": "5¢",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_010",
+      "value_cents": 10,
+      "kind": "coin",
+      "display_label": "10¢",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_025",
+      "value_cents": 25,
+      "kind": "coin",
+      "display_label": "25¢",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_050",
+      "value_cents": 50,
+      "kind": "coin",
+      "display_label": "50¢",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_100",
+      "value_cents": 100,
+      "kind": "coin",
+      "display_label": "$1",
+      "theme": "usd_like",
+      "enabled": true
+    },
+    {
+      "id": "COIN_USD_200",
+      "value_cents": 200,
+      "kind": "coin",
+      "display_label": "$2",
+      "theme": "usd_like",
+      "enabled": true
+    }
+  ]
+}

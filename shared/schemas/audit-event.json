@@ -51,7 +51,8 @@
         "CONFIG_UPDATED",
         "CERT_ROTATION",
         "POLICY_CHANGE",
-        "TAMPER_ALERT"
+        "TAMPER_ALERT",
+        "CONFIG_MISMATCH"
       ]
     },
     "occurred_at": {

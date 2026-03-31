@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ctm.internal/schemas/print_profile.schema.json",
+  "title": "PrintProfile",
+  "description": "Voucher print layout parameters. All kiosks MUST use identical print profiles to ensure the same physical output regardless of which unit prints a voucher. Template versioning prevents layout drift across a fleet.",
+  "type": "object",
+  "required": ["paper", "dpi", "template_id", "template_version"],
+  "additionalProperties": false,
+  "properties": {
+    "paper": {
+      "type": "string",
+      "enum": ["receipt_80mm", "receipt_58mm", "a6", "a5"],
+      "description": "Physical paper/stock type and width. 'receipt_80mm' is the standard for most ATM/kiosk thermal printers."
+    },
+    "dpi": {
+      "type": "integer",
+      "description": "Printer resolution in dots-per-inch. Must match the physical printer capability; mismatches cause QR distortion.",
+      "minimum": 150,
+      "examples": [203, 300, 600]
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Stable identifier for the voucher layout template. Kiosks load the template matching this ID from their local template store.",
+      "minLength": 1,
+      "examples": ["voucher_v1", "voucher_compact_v1"]
+    },
+    "template_version": {
+      "type": "string",
+      "description": "Version of the named template. Kiosks MUST refuse to print if they do not have this exact version loaded, and must log a CONFIG_MISMATCH audit event.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": ["1.0.0", "1.1.0"]
+    }
+  }
+}
