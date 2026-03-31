@@ -1,0 +1,84 @@
+# podman-compose file for local development
+# Starts: backend-api, postgres
+# Run from the repo root: podman-compose -f deploy/containers/compose.yaml up -d
+
+version: "3.9"
+
+networks:
+  ctm-internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+
+services:
+  postgres:
+    image: docker.io/library/postgres:15-alpine
+    container_name: ctm-postgres
+    environment:
+      POSTGRES_DB: ctm
+      POSTGRES_USER: ctm
+      # WARNING: Change this password before any non-local / staging deployment.
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - ctm-internal
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ctm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-api:
+    build:
+      context: ../..
+      dockerfile: deploy/containers/Containerfile.backend
+    image: localhost/ctm-backend-api:dev
+    container_name: ctm-backend-api
+    environment:
+      DB_URL: postgresql://ctm:changeme@postgres:5432/ctm
+      CTM_CHAIN_TESTNET: "true"
+      LOG_LEVEL: info
+      API_PORT: "8443"
+    ports:
+      - "8443:8443"
+    networks:
+      - ctm-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8443/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  kiosk-agent:
+    build:
+      context: ../..
+      dockerfile: deploy/containers/Containerfile.kiosk
+    image: localhost/ctm-kiosk-agent:dev
+    container_name: ctm-kiosk-agent
+    environment:
+      # Plain HTTP is used here for local development only (no TLS certs in dev).
+      # In production, set BACKEND_URL to https:// and provide TLS certificates.
+      BACKEND_URL: http://backend-api:8443/v1
+      KIOSK_ID: kiosk-dev-001
+      CTM_HAL_SIMULATE: "true"
+      CTM_CHAIN_TESTNET: "true"
+      LOG_LEVEL: info
+      HEALTH_PORT: "8080"
+    ports:
+      - "8080:8080"
+    networks:
+      - ctm-internal
+    depends_on:
+      - backend-api
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

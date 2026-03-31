@@ -1,0 +1,43 @@
+[Unit]
+Description=CTM Backend API
+Documentation=https://github.com/TearBear250/crypto-teller-machine/tree/main/backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+
+# Run as non-root (rootless Podman)
+User=ctm-api
+Group=ctm-api
+
+# Environment file — copy from backend/.env.example and fill in values
+EnvironmentFile=/etc/ctm/backend-api.env
+
+ExecStartPre=-/usr/bin/podman rm -f backend-api
+ExecStart=/usr/bin/podman run \
+  --name backend-api \
+  --rm \
+  --env-file /etc/ctm/backend-api.env \
+  --volume /etc/ctm/tls:/etc/ctm/tls:ro,Z \
+  --publish 0.0.0.0:8443:8443 \
+  --label io.containers.autoupdate=registry \
+  localhost/ctm-backend-api:latest
+
+ExecStop=/usr/bin/podman stop backend-api
+
+# Logging to journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backend-api
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

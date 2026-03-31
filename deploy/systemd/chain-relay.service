@@ -1,0 +1,38 @@
+[Unit]
+Description=CTM Chain Relay
+Documentation=https://github.com/TearBear250/crypto-teller-machine/tree/main/backend
+After=network-online.target backend-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+
+User=ctm-api
+Group=ctm-api
+
+EnvironmentFile=/etc/ctm/chain-relay.env
+
+ExecStartPre=-/usr/bin/podman rm -f chain-relay
+ExecStart=/usr/bin/podman run \
+  --name chain-relay \
+  --rm \
+  --env-file /etc/ctm/chain-relay.env \
+  --volume /etc/ctm/tls:/etc/ctm/tls:ro,Z \
+  --label io.containers.autoupdate=registry \
+  localhost/ctm-chain-relay:latest
+
+ExecStop=/usr/bin/podman stop chain-relay
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chain-relay
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
