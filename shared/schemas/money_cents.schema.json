@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ctm.internal/schemas/money_cents.schema.json",
+  "title": "MoneyCents",
+  "description": "A non-negative integer representing a fiat monetary amount in the smallest indivisible unit of the currency (cents for USD/CAD). Integer representation eliminates floating-point drift across kiosks.",
+  "type": "integer",
+  "minimum": 0,
+  "examples": [100, 500, 1000, 2000, 5000, 10000]
+}

@@ -1,0 +1,807 @@
+openapi: "3.0.3"
+info:
+  title: CTM / LTM Backend API
+  version: "0.1.0"
+  description: |
+    REST API between the CTM/LTM kiosk-agent (Fedora) and the backend services
+    (CentOS Stream 9). All endpoints require mTLS device authentication.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://backend.ctm.internal:8443/v1
+    description: Testnet backend (Canada region)
+  - url: https://localhost:8443/v1
+    description: Local development
+
+security:
+  - mtls: []
+
+tags:
+  - name: health
+    description: Liveness and readiness
+  - name: assets
+    description: Supported crypto assets and quotes
+  - name: sessions
+    description: Transaction session lifecycle
+  - name: audit
+    description: Audit event ingestion
+  - name: fleet
+    description: Device configuration and heartbeat
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness / readiness check
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /assets:
+    get:
+      tags: [assets]
+      summary: List supported assets
+      operationId: listAssets
+      responses:
+        "200":
+          description: Array of supported assets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Asset"
+
+  /assets/{assetId}/quote:
+    get:
+      tags: [assets]
+      summary: Get an exchange rate quote
+      operationId: getQuote
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [ltc, doge, xrp, sol]
+        - name: fiat_amount
+          in: query
+          description: Fiat amount (use for buy direction)
+          schema:
+            type: number
+            format: double
+        - name: asset_amount
+          in: query
+          description: Asset amount (use for sell direction)
+          schema:
+            type: number
+            format: double
+        - name: fiat_currency
+          in: query
+          required: true
+          schema:
+            type: string
+            example: CAD
+        - name: direction
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [buy, sell]
+      responses:
+        "200":
+          description: Quote response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "403":
+          $ref: "#/components/responses/AssetDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /sessions:
+    post:
+      tags: [sessions]
+      summary: Create a new transaction session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "409":
+          $ref: "#/components/responses/QuoteExpired"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /sessions/{sessionId}:
+    get:
+      tags: [sessions]
+      summary: Get session state
+      operationId: getSession
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sessions/{sessionId}/confirm:
+    post:
+      tags: [sessions]
+      summary: Confirm session (lock quote and submit destination address)
+      operationId: confirmSession
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmSessionRequest"
+      responses:
+        "200":
+          description: Session confirmed and processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/QuoteExpired"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /sessions/{sessionId}/cancel:
+    post:
+      tags: [sessions]
+      summary: Cancel a session (cash returned or timeout)
+      operationId: cancelSession
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: USER_CANCELLED
+      responses:
+        "200":
+          description: Session cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sessions/{sessionId}/status:
+    get:
+      tags: [sessions]
+      summary: Poll transaction confirmation status
+      operationId: getSessionStatus
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Transaction status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /audit/events:
+    post:
+      tags: [audit]
+      summary: Append one or more audit events from the kiosk
+      operationId: postAuditEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/AuditEvent"
+      responses:
+        "204":
+          description: Events accepted
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /fleet/config:
+    get:
+      tags: [fleet]
+      summary: Fetch current kiosk configuration and policy
+      operationId: getFleetConfig
+      responses:
+        "200":
+          description: Configuration for this kiosk
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KioskConfig"
+
+  /fleet/heartbeat:
+    post:
+      tags: [fleet]
+      summary: Device health heartbeat
+      operationId: postHeartbeat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HeartbeatRequest"
+      responses:
+        "204":
+          description: Heartbeat received
+
+components:
+  securitySchemes:
+    mtls:
+      type: mutualTLS
+      description: Device certificate issued by fleet CA
+
+  parameters:
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: SESSION_NOT_FOUND
+              message: "Session not found"
+    QuoteExpired:
+      description: Quote has expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: QUOTE_EXPIRED
+              message: "The quote has expired. Request a new quote."
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AssetDisabled:
+      description: Asset is not currently enabled
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: ASSET_DISABLED
+              message: "This asset is not currently enabled on this kiosk"
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Asset:
+      type: object
+      required: [id, name, enabled, network_mode]
+      properties:
+        id:
+          type: string
+          enum: [ltc, doge, xrp, sol]
+        name:
+          type: string
+          example: Litecoin
+        enabled:
+          type: boolean
+        network_mode:
+          type: string
+          enum: [testnet, mainnet]
+        requires_destination_tag:
+          type: boolean
+          description: True for XRP (destination tag required)
+
+    Quote:
+      type: object
+      required: [quote_id, asset_id, direction, fiat_amount, fiat_currency,
+                 asset_amount, rate, fee_fiat, expires_at]
+      properties:
+        quote_id:
+          type: string
+          format: uuid
+        asset_id:
+          type: string
+        direction:
+          type: string
+          enum: [buy, sell]
+        fiat_amount:
+          type: number
+          format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents to avoid floating-point drift.
+            Retained for backward compatibility with kiosk-agent < 0.2.0.
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Fiat amount expressed as integer cents. Preferred over fiat_amount.
+        fiat_currency:
+          type: string
+        asset_amount:
+          type: number
+          format: double
+        rate:
+          type: number
+          format: double
+          description: Fiat per 1 unit of asset
+        fee_fiat:
+          type: number
+          format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fee_fiat_cents to avoid floating-point drift.
+        fee_fiat_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Transaction fee expressed as integer cents. Preferred over fee_fiat.
+        expires_at:
+          type: string
+          format: date-time
+
+    CreateSessionRequest:
+      type: object
+      required: [kiosk_id, direction, asset_id, fiat_currency, quote_id]
+      properties:
+        kiosk_id:
+          type: string
+        direction:
+          type: string
+          enum: [buy, sell]
+        asset_id:
+          type: string
+        fiat_amount:
+          type: number
+          format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents. Required for buy direction if
+            fiat_amount_cents is absent (backward compatibility only).
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Fiat amount in integer cents. Required for buy direction (preferred over fiat_amount).
+        asset_amount:
+          type: number
+          format: double
+          description: Required for sell direction
+        fiat_currency:
+          type: string
+          example: CAD
+        quote_id:
+          type: string
+          format: uuid
+
+    ConfirmSessionRequest:
+      type: object
+      required: [destination_address]
+      properties:
+        destination_address:
+          type: string
+          description: User's wallet address (scanned by kiosk)
+        destination_tag:
+          type: integer
+          description: Required for XRP
+
+    Session:
+      type: object
+      required: [session_id, kiosk_id, direction, asset_id, fiat_amount,
+                 fiat_currency, state, created_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        kiosk_id:
+          type: string
+        direction:
+          type: string
+          enum: [buy, sell]
+        asset_id:
+          type: string
+        fiat_amount:
+          type: number
+          format: double
+          deprecated: true
+          description: |
+            DEPRECATED — use fiat_amount_cents to avoid floating-point drift.
+        fiat_amount_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Session fiat amount expressed as integer cents.
+        fiat_currency:
+          type: string
+        asset_amount:
+          type: number
+          format: double
+        quote_id:
+          type: string
+          format: uuid
+        destination_address:
+          type: string
+        destination_tag:
+          type: integer
+        txid:
+          type: string
+        state:
+          type: string
+          enum:
+            - AWAITING_CASH
+            - AWAITING_CRYPTO
+            - PROCESSING
+            - CONFIRMING
+            - CONFIRMED
+            - DISPENSING
+            - COMPLETE
+            - CANCELLED
+            - FAILED
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    TransactionStatus:
+      type: object
+      required: [session_id, state]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        txid:
+          type: string
+        state:
+          type: string
+        confirmations:
+          type: integer
+        required_confirmations:
+          type: integer
+        block_height:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+
+    AuditEvent:
+      type: object
+      required: [event_id, kiosk_id, event_type, occurred_at]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        kiosk_id:
+          type: string
+        session_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum:
+            - BILL_INSERTED
+            - BILL_REJECTED
+            - CASH_DISPENSED
+            - QR_SCANNED
+            - SESSION_CREATED
+            - SESSION_CONFIRMED
+            - SESSION_CANCELLED
+            - SESSION_COMPLETED
+            - HAL_ERROR
+            - OPERATOR_LOGIN
+            - OPERATOR_LOGOUT
+            - CONFIG_UPDATED
+            - TX_BROADCAST
+            - TX_CONFIRMED
+            - TX_FAILED
+            - CONFIG_MISMATCH
+        occurred_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Event-specific additional data (no PII)
+
+    KioskConfig:
+      type: object
+      properties:
+        kiosk_id:
+          type: string
+        spec_version:
+          type: string
+          description: |
+            Version string for this configuration payload. Kiosks MUST reject
+            a downgrade below their currently loaded version. Format: YYYY-MM-DD.N
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+$"
+          example: "2026-03-31.1"
+        enabled_assets:
+          type: array
+          items:
+            type: string
+        network_mode:
+          type: string
+          enum: [testnet, mainnet]
+        session_timeout_seconds:
+          type: integer
+        max_fiat_per_session:
+          type: number
+          format: double
+          deprecated: true
+          description: DEPRECATED — use max_fiat_per_session_cents.
+        max_fiat_per_session_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Maximum fiat per session expressed as integer cents.
+        max_fiat_per_day:
+          type: number
+          format: double
+          deprecated: true
+          description: DEPRECATED — use max_fiat_per_day_cents.
+        max_fiat_per_day_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Maximum fiat per day expressed as integer cents.
+        fiat_currency:
+          type: string
+        version:
+          type: string
+          deprecated: true
+          description: DEPRECATED — use spec_version.
+        denominations:
+          $ref: "#/components/schemas/DenominationSet"
+          description: |
+            Complete denomination set for this kiosk. Delivered from the backend
+            so all kiosks in the fleet share an identical, versioned denomination
+            configuration. Kiosks MUST render denominations from this field only.
+        qr_profile:
+          $ref: "#/components/schemas/QrProfile"
+          description: |
+            QR code generation parameters. All kiosks MUST use these exact values
+            to guarantee that printed QR codes scan reliably on any reader.
+        print_profile:
+          $ref: "#/components/schemas/PrintProfile"
+          description: |
+            Voucher print layout parameters. Kiosks MUST refuse to print if their
+            local template store does not contain the specified template_id at
+            the specified template_version.
+
+    HeartbeatRequest:
+      type: object
+      required: [kiosk_id, timestamp]
+      properties:
+        kiosk_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        software_version:
+          type: string
+        hal_status:
+          type: object
+          properties:
+            bill_acceptor:
+              type: string
+              enum: [ok, error, disconnected]
+            cash_dispenser:
+              type: string
+              enum: [ok, error, disconnected, low]
+            printer:
+              type: string
+              enum: [ok, error, disconnected, paper_low]
+            qr_scanner:
+              type: string
+              enum: [ok, error, disconnected]
+
+    MoneyCents:
+      type: integer
+      minimum: 0
+      description: |
+        A non-negative integer representing a fiat monetary amount in the
+        smallest indivisible unit of the currency (cents for USD/CAD).
+        Integer representation eliminates floating-point drift across kiosks.
+      examples: [100, 500, 1000, 2000, 5000, 10000]
+
+    Denomination:
+      type: object
+      required: [id, value_cents, kind, display_label, theme]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: |
+            Stable machine-readable identifier.
+            Format: {KIND}_{CURRENCY}_{VALUE_CENTS_PADDED}.
+            Must never change once a kiosk has been deployed.
+          pattern: "^(BILL|COIN)_[A-Z]{3}_[0-9]+$"
+          examples: ["BILL_USD_100", "COIN_USD_025"]
+        value_cents:
+          $ref: "#/components/schemas/MoneyCents"
+          description: Face value expressed as integer cents (e.g. $1.00 = 100).
+        kind:
+          type: string
+          enum: [bill, coin]
+          description: Physical form of this denomination.
+        display_label:
+          type: string
+          description: Human-readable label rendered on the kiosk UI and printed voucher.
+          minLength: 1
+          examples: ["$1", "$5", "25¢"]
+        theme:
+          type: string
+          description: Visual theme controlling colors and artwork on the kiosk UI.
+          examples: ["usd_like", "cad_like", "neutral"]
+        enabled:
+          type: boolean
+          default: true
+          description: When false the kiosk must not accept or dispense this denomination.
+
+    DenominationSet:
+      type: object
+      required: [spec_version, fiat_currency, bills, coins]
+      additionalProperties: false
+      properties:
+        spec_version:
+          type: string
+          description: |
+            Monotonically increasing version. Kiosks MUST reject a downgrade.
+            Format: YYYY-MM-DD.N
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+$"
+          example: "2026-03-31.1"
+        fiat_currency:
+          type: string
+          description: ISO 4217 currency code this denomination set applies to.
+          pattern: "^[A-Z]{3}$"
+          example: "USD"
+        bills:
+          type: array
+          description: Bill denominations ordered from lowest to highest value.
+          items:
+            $ref: "#/components/schemas/Denomination"
+        coins:
+          type: array
+          description: Coin denominations ordered from lowest to highest value.
+          items:
+            $ref: "#/components/schemas/Denomination"
+
+    QrProfile:
+      type: object
+      required: [format, uri_prefix, error_correction, module_size_mm, quiet_zone_modules]
+      additionalProperties: false
+      properties:
+        format:
+          type: string
+          enum: [uri]
+          description: Payload encoding format. 'uri' = QR content is a URI string.
+        uri_prefix:
+          type: string
+          description: |
+            Fixed prefix prepended to every claim token to form the full QR
+            payload URI. Kiosk MUST append only the opaque token.
+          examples: ["ctm://claim/", "ctm://voucher/"]
+        error_correction:
+          type: string
+          enum: [L, M, Q, H]
+          description: |
+            Reed-Solomon error correction level. 'M' (15%) is the recommended
+            minimum for printed vouchers. Use 'Q' (25%) for high-wear environments.
+        module_size_mm:
+          type: number
+          description: |
+            Physical size of each QR module in millimetres. Must be ≥ 0.25 mm
+            for reliable scanning at 150 mm distance.
+          minimum: 0.25
+          examples: [0.5, 0.75, 1.0]
+        quiet_zone_modules:
+          type: integer
+          description: |
+            Number of empty modules surrounding the QR symbol on all four sides.
+            The QR spec requires ≥ 4; this field enforces that minimum.
+          minimum: 4
+          examples: [4, 6]
+
+    PrintProfile:
+      type: object
+      required: [paper, dpi, template_id, template_version]
+      additionalProperties: false
+      properties:
+        paper:
+          type: string
+          enum: [receipt_80mm, receipt_58mm, a6, a5]
+          description: Physical paper/stock type. 'receipt_80mm' is the standard for kiosk thermal printers.
+        dpi:
+          type: integer
+          description: |
+            Printer resolution in dots-per-inch. Must match the physical printer
+            capability; mismatches cause QR distortion.
+          minimum: 150
+          examples: [203, 300, 600]
+        template_id:
+          type: string
+          description: Stable identifier for the voucher layout template.
+          minLength: 1
+          examples: ["voucher_v1", "voucher_compact_v1"]
+        template_version:
+          type: string
+          description: |
+            Version of the named template. Kiosks MUST refuse to print if they
+            do not have this exact version loaded and MUST log a CONFIG_MISMATCH
+            audit event.
+          pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          examples: ["1.0.0", "1.1.0"]
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string

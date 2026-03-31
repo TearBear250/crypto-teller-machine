@@ -1,0 +1,43 @@
+[Unit]
+Description=CTM Kiosk Agent
+Documentation=https://github.com/TearBear250/crypto-teller-machine/tree/main/kiosk
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+
+# Run as non-root (rootless Podman)
+User=ctm-agent
+Group=ctm-agent
+
+# Environment file — copy from kiosk/.env.example and fill in values
+EnvironmentFile=/etc/ctm/kiosk-agent.env
+
+ExecStartPre=-/usr/bin/podman rm -f kiosk-agent
+ExecStart=/usr/bin/podman run \
+  --name kiosk-agent \
+  --rm \
+  --env-file /etc/ctm/kiosk-agent.env \
+  --volume /etc/ctm/tls:/etc/ctm/tls:ro,Z \
+  --publish 127.0.0.1:8080:8080 \
+  --label io.containers.autoupdate=registry \
+  localhost/ctm-kiosk-agent:latest
+
+ExecStop=/usr/bin/podman stop kiosk-agent
+
+# Logging to journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kiosk-agent
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

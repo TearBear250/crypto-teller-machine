@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ctm.internal/schemas/denomination_set.schema.json",
+  "title": "DenominationSet",
+  "description": "A versioned, currency-specific collection of bill and coin denominations delivered to every kiosk from the fleet config endpoint. All kiosks consuming the same set are guaranteed identical denomination logic.",
+  "type": "object",
+  "required": ["spec_version", "fiat_currency", "bills", "coins"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": {
+      "type": "string",
+      "description": "Monotonically increasing version string for this denomination set. Kiosks MUST reject a downgrade (lower version than currently loaded). Format: YYYY-MM-DD.N",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+$",
+      "examples": ["2026-03-31.1"]
+    },
+    "fiat_currency": {
+      "type": "string",
+      "description": "ISO 4217 currency code this denomination set applies to.",
+      "pattern": "^[A-Z]{3}$",
+      "examples": ["USD", "CAD"]
+    },
+    "bills": {
+      "type": "array",
+      "description": "Ordered list of bill denominations, from lowest to highest value.",
+      "minItems": 0,
+      "items": {
+        "$ref": "denomination.schema.json"
+      }
+    },
+    "coins": {
+      "type": "array",
+      "description": "Ordered list of coin denominations, from lowest to highest value.",
+      "minItems": 0,
+      "items": {
+        "$ref": "denomination.schema.json"
+      }
+    }
+  }
+}

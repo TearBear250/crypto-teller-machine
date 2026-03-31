@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+# Containerfile for ctm-backend-api
+# Target OS: CentOS Stream 9 (RHEL ecosystem)
+# Run with Podman (rootless)
+
+FROM quay.io/centos/centos:stream9
+
+LABEL org.opencontainers.image.title="ctm-backend-api"
+LABEL org.opencontainers.image.description="CTM/LTM backend API service — CentOS Stream 9"
+LABEL org.opencontainers.image.source="https://github.com/TearBear250/crypto-teller-machine"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL io.containers.autoupdate="registry"
+
+RUN dnf install -y python3 python3-pip && \
+    dnf clean all
+
+# Create non-root service user
+RUN useradd --system --uid 1001 --no-create-home ctm-api
+
+WORKDIR /app
+
+COPY backend/backend-api/main.py .
+COPY backend/chain-plugins/ chain_plugins/
+
+# No external pip dependencies for the placeholder; add requirements.txt here
+# when real dependencies are added:
+# COPY backend/backend-api/requirements.txt .
+# RUN pip3 install --no-cache-dir -r requirements.txt
+
+RUN mkdir -p /etc/ctm/tls && chown ctm-api /etc/ctm/tls
+
+USER ctm-api
+
+EXPOSE 8443
+
+ENV API_PORT=8443 \
+    LOG_LEVEL=info \
+    CTM_CHAIN_TESTNET=true
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8443/v1/health')"
+
+CMD ["python3", "main.py"]
