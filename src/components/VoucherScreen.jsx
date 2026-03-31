@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { generateAddress } from '../services/walletService'
+import { formatAmount } from '../utils/formatAmount'
 
 const COIN_LABELS = {
   BCH: 'Bitcoin Cash',
@@ -27,11 +28,6 @@ export default function VoucherScreen({ coin, denomination, onBack }) {
     } else {
       window.print()
     }
-  }
-
-  const formatAmount = (amount) => {
-    if (amount < 1) return `$${Number(amount).toFixed(2)}`
-    return `$${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0 })}`
   }
 
   return (

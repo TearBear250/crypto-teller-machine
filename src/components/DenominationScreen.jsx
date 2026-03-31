@@ -1,8 +1,6 @@
+import { formatAmount } from '../utils/formatAmount'
+
 export default function DenominationScreen({ coin, denominations, onSelect, onBack }) {
-  const formatAmount = (amount) => {
-    if (amount < 1) return `$${amount.toFixed(2)}`
-    return `$${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0 })}`
-  }
 
   return (
     <div className="screen denom-screen">
