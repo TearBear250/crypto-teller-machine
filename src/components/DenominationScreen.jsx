@@ -1,7 +1,6 @@
 import { formatAmount } from '../utils/formatAmount'
 
 export default function DenominationScreen({ coin, denominations, onSelect, onBack }) {
-
   return (
     <div className="screen denom-screen">
       <button className="back-btn" onClick={onBack} aria-label="Back to coin selection">

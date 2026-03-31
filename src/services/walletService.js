@@ -41,8 +41,11 @@ export function generateAddress(coin) {
   if (!network) throw new Error(`Unsupported coin: ${coin}`)
   const keyPair = ECPair.makeRandom({ network })
   const { address } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network })
-  // Private key is intentionally not returned. Note: JavaScript does not support
-  // explicit memory zeroing, so the keyPair will be garbage-collected by the runtime.
+  // Private key is intentionally not returned.
+  // Note: JavaScript does not support explicit memory zeroing; the keyPair
+  // will be garbage-collected by the runtime. For production deployments
+  // handling real funds, consider using a hardware security module (HSM)
+  // or a dedicated isolated process for key generation.
   return { address, coin }
 }
 
